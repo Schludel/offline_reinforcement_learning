@@ -52,6 +52,7 @@ class CarlaEnv(gym.Env):
         self.actor_list = []
         self.count = 0
 
+        #Action Noise for dataset creation
         #self.mean = 0.0 
         #self.std = 0.8
 
@@ -138,7 +139,6 @@ class CarlaEnv(gym.Env):
 
         # initialize autopilot
         self.agent = RoamingAgent(self.vehicle)
-        #self.agent = SpeedAutopilot(self.vehicle)
 
         # get initial observation
         if self.observations_type == 'state':
@@ -147,9 +147,7 @@ class CarlaEnv(gym.Env):
             obs = np.zeros((84, 84, 3))
 
         # gym environment specific variables
-        #np.array([0, -1, 0]), np.array([+1, +1, +1])
         self.action_space = spaces.Box(-1. , 1., shape=(2,), dtype='float32')
-        #self.action_space = spaces.Box(np.array([-0.25 , -1.]), np.array([0.25, 1.]), shape=(2,), dtype='float32')
         self.obs_dim = obs.shape
         self.observation_space = spaces.Box(-np.inf, np.inf, shape=self.obs_dim, dtype=np.uint8)
 
@@ -167,19 +165,12 @@ class CarlaEnv(gym.Env):
     def _reset_vehicle(self):
         # choose random spawn point from self selected spawn points
         spawn_points = []
-        spawn_points.append(carla.Transform(carla.Location(x=4.3, y=-157.2, z= 0.2), carla.Rotation(0, -90, 0))) #starting point dataset FUNKTIONIERT !!!!!!!!
-        #spawn_points.append(carla.Transform(carla.Location(x=262.2, y=41.8, z= 0.2), carla.Rotation(0, 0, 0))) #starting point dataset Town06
-        #spawn_points.append(carla.Transform(carla.Location(x=63.5, y=-342.4, z= 0.2), carla.Rotation(0, -37.7, 0))) #here FUNKTIONIERT!!!!!!!!!
-        #spawn_points.append(carla.Transform(carla.Location(x=5.6, y=128.9, z= 0.2), carla.Rotation(0, -90.3, 0))) #here FUNTKIONIERT !!!!!!!!!!
-        #spawn_points.append(carla.Transform(carla.Location(x=-59.8, y=356.4, z= 0.2), carla.Rotation(0, 130.1, 0))) #here FUNKTIONIERT
-        #spawn_points.append(carla.Transform(carla.Location(x=8.2, y=-65.7, z= 0.2), carla.Rotation(0, -90, 0))) 
-        #spawn_points.append(carla.Transform(carla.Location(x=-9.9, y=-212.6, z= 0.2), carla.Rotation(0, 90, 0)))
-        #spawn_points.append(carla.Transform(carla.Location(x=145.6, y=237.5, z= 0.2), carla.Rotation(0, -0.4, 0))) #other spawnpoint on left lane
-        #spawn_points.append(carla.Transform(carla.Location(x=-7.8, y=304.0, z= 0.2), carla.Rotation(0, -66.4, 0))) #Kurve
-        #spawn_points.append(carla.Transform(carla.Location(x=-5.1, y=-240.9, z= 0.2), carla.Rotation(0, 97.2, 0)))
+        spawn_points.append(carla.Transform(carla.Location(x=4.3, y=-157.2, z= 0.2), carla.Rotation(0, -90, 0))) 
+        spawn_points.append(carla.Transform(carla.Location(x=262.2, y=41.8, z= 0.2), carla.Rotation(0, 0, 0)))
+        spawn_points.append(carla.Transform(carla.Location(x=63.5, y=-342.4, z= 0.2), carla.Rotation(0, -37.7, 0))) 
+        spawn_points.append(carla.Transform(carla.Location(x=5.6, y=128.9, z= 0.2), carla.Rotation(0, -90.3, 0)))
+        spawn_points.append(carla.Transform(carla.Location(x=-59.8, y=356.4, z= 0.2), carla.Rotation(0, 130.1, 0)))
 
-        #init_transforms = self.world.get_map().get_spawn_points()
-        #vehicle_init_transform = random.choice(init_transforms)
         vehicle_init_transform = random.choice(spawn_points)
 
 
@@ -284,22 +275,6 @@ class CarlaEnv(gym.Env):
         else:
             throttle = 0.0
             brake = -throttle_brake
-        
-        #action_list = [throttle_brake, steer]
-        print('action', action)
-
-        #if action_list[0] >= 0.0:
-        #    noise = np.random.normal(self.mean, self.std, size = len(action_list))
-        #    action_list = np.clip(action_list + noise, -1.0, 1.0)
-        #else:
-        #    noise = np.random.normal(self.mean, self.std, size = len(action_list))
-        #    action_list = np.clip(action_list + noise, -1.0, 1.0)
-        #    action_list[1] = 0.0
-#
-#
-        #throttle = action_list[0]
-        #brake = action_list[1]
-        #steer = action_list[2]
 
         # apply control to simulation
         vehicle_control = carla.VehicleControl(
@@ -310,8 +285,6 @@ class CarlaEnv(gym.Env):
             reverse=False,
             manual_gear_shift=False
         )
-
-        #print('vehicle_control', vehicle_control)
 
         self.vehicle.apply_control(vehicle_control)
 
@@ -395,31 +368,13 @@ class CarlaEnv(gym.Env):
         vehicle_velocity = self.vehicle.get_velocity()
         vehicle_velocity = np.around(np.sqrt(vehicle_velocity.x**2 + vehicle_velocity.y**2 + vehicle_velocity.z**2), 2)
 
-        ###############
-        #total_reward = 100 * follow_waypoint_reward + 100 * collision_reward
-        #total_reward = 100 * collision_reward + base_reward + speed_reward + line_reward + heading_reward + lane_leaving_reward
-
-        #if rel_speed > 0.05:
-        #    total_reward = base_reward + recenter_reward + 400 * collision_reward
-        #else: 
-        #    total_reward = -0.4
-
-        #total_reward = 0.6 * speed_reward + 0.1 * heading_reward + 0.2 * line_reward + 0.1 * steering_diff_reward
         if vehicle_velocity <= 0:
             total_reward = action_reward
         else:
-            print('speed_reward', speed_reward)
-            print('heading_reward', heading_reward)
-            print('line_reward', line_reward)
-            print('steering_diff_reward', steering_diff_reward)
-            print('steering_angle_reward', steering_angle_reward)
             total_reward = 0.2 * speed_reward + 0.1 * heading_reward + 0.5 * line_reward + 0.2 * steering_diff_reward + steering_angle_reward
 
-        print('total_reward', total_reward)
-        print('distance_to_centerline', distance_to_centerline)
         ###############
         info_dict = dict()
-        #info_dict['follow_waypoint_reward'] = follow_waypoint_reward
         info_dict['speed_reward'] = speed_reward
         info_dict['heading_reward'] = heading_reward
         info_dict['line_reward'] = line_reward
@@ -475,8 +430,6 @@ class CarlaEnv(gym.Env):
             distance_to_centerline = np.around(nearest_wp.lane_width - distance, 2)
         else:
             distance_to_centerline = np.around(distance, 2)
-        
-        #print('distance_to_centerline', distance_to_centerline)
         
         #distance_to_centerline.append(distance_to_centerline_list)
         self.distance_to_centerline_list.append(distance_to_centerline)
@@ -604,18 +557,12 @@ class CarlaEnv(gym.Env):
         return base_reward
 
     def _get_speed_reward(self, current_speed, speed_limit):
-        print('current_speed', current_speed)
 
         if current_speed <= 0:
-            #speed_reward =  -0.03746917 + 2.111163*current_speed + 1.765929*current_speed**2 + 0.6194876*current_speed**3
             speed_reward = 0
         elif current_speed <= 15 and current_speed >= 0:
-            #speed_reward = 0.001098417*current_speed**2.004401
-            #speed_reward = 0.00000753259*current_speed**4-0.000464678*current_speed**3+0.0078757*current_speed**2+0.0118926*current_speed
             speed_reward = -0.0000109073*current_speed**4 + 0.000450624*current_speed**3-0.00896782*current_speed**2 + 0.136606*current_speed
         elif current_speed >= 15 and current_speed <= 20:
-            #speed_reward = -0.4088191 + (1.342667 - -0.4088191)/(1 + (current_speed/30.54382)**79.46682)
-            #speed_reward = 0.0000607315*current_speed**4-0.00462176*current_speed**3+0.100925*current_speed**2 -0.474584*current_speed
             speed_reward = 0.00708549 * current_speed**4 - 0.522372*current_speed**3 + 14.4249*current_speed**2 - 176.871 * current_speed + 812.776
         else:
             speed_reward = 0
@@ -624,7 +571,6 @@ class CarlaEnv(gym.Env):
 
     def _get_line_reward(self, distance_to_centerline):
         if distance_to_centerline >= 0 and distance_to_centerline <= 0.6:
-            #line_reward = -349003.1 + (0.9335018 - -349003.1)/(1 + (distance_to_centerline/9.754655)**4.598628)
             line_reward = 0.249716 * distance_to_centerline**4 - 7.54956 * distance_to_centerline**3 + 2.04709 * distance_to_centerline**2 - 0.23102 * distance_to_centerline + 1
         else:
             line_reward = 0
@@ -635,7 +581,6 @@ class CarlaEnv(gym.Env):
             heading_reward = 0
         elif final_delta_heading >= 0 and final_delta_heading <= 15:
             heading_reward = 0.0000429958 * final_delta_heading**4 - 0.00241822 * final_delta_heading**3 + 0.0457238 * final_delta_heading**2 - 0.353536 * final_delta_heading + 1
-            #heading_reward =  -0.02852283 + (1.000078 - -0.02852283)/(1 + (final_delta_heading/1.045035)**1.211741)
         else:
             heading_reward = 0
         return heading_reward
