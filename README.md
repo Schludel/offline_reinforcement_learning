@@ -344,6 +344,189 @@ cd carla_wrapper/carla_env/__init__.py
 * edit Town
 * Turn on/off autopilot
 
+```
+cd carla_wrapper/carla_env/carla_env.py
+```
 
 
+```
+#Action Noise for dataset creation
+#self.mean = 0.0 
+#self.std = 0.8
+
+...
+
+#noise = np.random.normal(self.mean, self.std, size = len(action))
+#action = np.clip(action + noise, -1.0, 1.0)
+```
+* uncomment for action noise
+
+```
+spawn_points = []
+spawn_points.append(carla.Transform(carla.Location(x=4.3, y=-157.2, z= 0.2), carla.Rotation(0, -90, 0))) 
+spawn_points.append(carla.Transform(carla.Location(x=262.2, y=41.8, z= 0.2), carla.Rotation(0, 0, 0)))
+spawn_points.append(carla.Transform(carla.Location(x=63.5, y=-342.4, z= 0.2), carla.Rotation(0, -37.7, 0))) 
+spawn_points.append(carla.Transform(carla.Location(x=5.6, y=128.9, z= 0.2), carla.Rotation(0, -90.3, 0)))
+spawn_points.append(carla.Transform(carla.Location(x=-59.8, y=356.4, z= 0.2), carla.Rotation(0, 130.1, 0)))
+
+vehicle_init_transform = random.choice(spawn_points)
+```
+* Carla spawn points designed for Town04
+
+
+# Dataset creation
+
+## CarRacing-v0
+
+```
+import gym 
+import numpy as np
+
+import d3rlpy
+from d3rlpy.dataset import MDPDataset
+
+from xvfbwrapper import Xvfb
+
+from curl_sac import RadSacAgent
+
+from ResizeObservation import ObservationWrapper
+from action_repeat_wrapper import ActionRepeat
+from frame_stack_wrapper import FrameStack
+
+env = gym.make('CarRacing-v0')
+env = ObservationWrapper(env)
+
+env = FrameStack(env, 4)
+env = ActionRepeat(env, 2)
+
+model = RadSacAgent(obs_shape = env.observation_space.shape, 
+                    action_shape = env.action_space.shape, 
+                    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu"),
+                    data_augs = 'no_aug',
+                    hidden_dim = 1024,
+                    )
+
+model.load(model_dir = '.rad/results/CarRacing-v0-driving_test_v21_no_img_crop-06-19-im96-b256-s23-pixel/model', step = '37000')
+
+obs_dataset = []
+action_dataset = []
+reward_dataset = []
+terminal_dataset = []
+
+with Xvfb() as xvfb:
+    obs = env.reset()
+    dones = False
+    while not dones:
+        action = model.select_action(obs / 255.)
+        obs, rewards, dones, info = env.step(action)
+
+        obs_dataset.append(obs)
+        action_dataset.append(action)
+        reward_dataset.append(rewards)
+        terminal_dataset.append(dones)
+        
+        env.render()
+
+print('TOTAL REWARD:', sum(reward_dataset))
+
+obs_dataset = np.array(obs_dataset)
+obs_dataset = obs_dataset[10:]
+action_dataset = np.array(action_dataset)
+action_dataset = action_dataset[10:]
+reward_dataset = np.array(reward_dataset)
+reward_dataset = reward_dataset[10:]
+terminal_dataset = np.array(terminal_dataset)
+terminal_dataset = terminal_dataset[10:]
+
+
+
+expert_dataset = MDPDataset(observations = obs_dataset,
+                            actions = action_dataset, 
+                            rewards = reward_dataset, 
+                            terminals = terminal_dataset,
+                            create_mask = False, 
+                            mask_size = 1)
+
+expert_dataset.dump('./rad/dataset_low_rew/car_racing_v100.h5')
+
+env.close()
+```
+
+## Carla
+
+```
+import gym 
+import numpy as np
+
+import d3rlpy
+from d3rlpy.dataset import MDPDataset
+
+from xvfbwrapper import Xvfb
+
+from curl_sac import RadSacAgent
+
+from ResizeObservation import ObservationWrapper
+from action_repeat_wrapper import ActionRepeat
+from frame_stack_wrapper import FrameStack
+
+import carla_env
+
+env = gym.make('CarlaEnv-pixel-v1')
+env = ObservationWrapper(env)
+
+env = FrameStack(env, 4)
+env = ActionRepeat(env, 2)
+
+model = RadSacAgent(obs_shape = env.observation_space.shape, 
+                    action_shape = env.action_space.shape, 
+                    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu"),
+                    data_augs = 'no_aug',
+                    hidden_dim = 1024,
+                    )
+
+model.load(model_dir = '.rad/results/Carla_frame_stack_4/model', step = '37000')
+
+obs_dataset = []
+action_dataset = []
+reward_dataset = []
+terminal_dataset = []
+
+with Xvfb() as xvfb:
+    obs = env.reset()
+    dones = False
+    while not dones:
+        action = model.select_action(obs / 255.)
+        obs, rewards, dones, info = env.step(action)
+
+        obs_dataset.append(obs)
+        action_dataset.append(action)
+        reward_dataset.append(rewards)
+        terminal_dataset.append(dones)
+        
+        env.render()
+
+print('TOTAL REWARD:', sum(reward_dataset))
+
+obs_dataset = np.array(obs_dataset)
+obs_dataset = obs_dataset[10:]
+action_dataset = np.array(action_dataset)
+action_dataset = action_dataset[10:]
+reward_dataset = np.array(reward_dataset)
+reward_dataset = reward_dataset[10:]
+terminal_dataset = np.array(terminal_dataset)
+terminal_dataset = terminal_dataset[10:]
+
+
+
+expert_dataset = MDPDataset(observations = obs_dataset,
+                            actions = action_dataset, 
+                            rewards = reward_dataset, 
+                            terminals = terminal_dataset,
+                            create_mask = False, 
+                            mask_size = 1)
+
+expert_dataset.dump('./rad/dataset_low_rew/carla_expert.h5')
+
+env.close()
+```
 
