@@ -1,2 +1,2 @@
-# carla_wrapper
-This is a Carla Wrapper. The reward function is designed for the task "lane keeping". zhn
+# Offline Reinforcement Learning CQL
+This is the work of my bachelor thesis. Hereby, I focused on the usage of offline reinforcement learning in autonomous driving. To this end, I tested SAC and CQL in the CarRacing-v0 environment and Carla. Furthermore, I created different datasets in the respective environments from expert dataset to noise dataset. I focused on the CQL performance on the different datasets with respect to the alpha value. 
