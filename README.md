@@ -340,6 +340,10 @@ env.close
 cd carla_wrapper/carla_env/__init__.py
 ```
 
-* hallo 
+* edit state-/pixel-based observation
+* edit Town
+* Turn on/off autopilot
+
+
 
 
